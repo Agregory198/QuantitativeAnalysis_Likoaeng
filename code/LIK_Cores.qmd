@@ -1,0 +1,1111 @@
+---
+title: "LIK_Cores"
+format: html
+editor: visual
+---
+
+```{r library}
+#| warning: false
+#| message: false
+
+#usethis::use_git_config(user.name="Alex Gregory", user.email="arg9496@nyu.edu")
+
+# To plot figures
+
+library(ggplot2)
+library(forcats)
+library(ggpubr)
+library(ggridges)
+library(cowplot)
+#library(ggforce)
+
+library(infer)
+#library(rcompanion)
+library(purrr)
+library(modelr)
+#library(rcompanion)
+library(viridis)
+
+library(scales)
+library(stringr)
+
+# To generate tables
+library(gtsummary)
+library(gt)
+library(broom)
+library(broom.mixed)
+
+library(stargazer)
+library(kableExtra)
+
+# To tidy the data
+library(tidyr)
+library(tidyverse)
+library(dplyr)
+library(forcats)
+library(tidybayes)
+
+# Bayesian models
+library(brms)
+library(emmeans)
+library(loo)
+library(BayesFactor)
+library(posterior)
+
+
+```
+
+```{r ReadData}
+#| message: false
+#| warning: false
+
+#| message: false
+#| warning: false
+
+# Read and clean the data
+
+df_24 <- read_csv("../data/AG_Winter2024_LIK_Final.csv")
+df_25 <- read_csv("../data/AG_Summer2025_LIK_Final.csv") |>
+  mutate(MASS = as.numeric(MASS)) |>
+  select(-"...72")
+
+df_ratios <- read_csv("../data/LIK_RiverTerr_Ratios.csv") |>
+  rename("STRAT" = "Strat")
+
+# Merge dataframes
+df_raw <- rbind(df_24, df_25) |>
+  
+  filter(STRAT != "?",
+         RAWMATERIAL %in% c("Opaline/CCS", "Hornfels", 
+                            "Tuff", "Siltstone")) |>
+  
+  mutate(STRAT = factor(ifelse(STRAT %in% 
+                          c("VII", "VIII", "IX"), "VII/IX", STRAT)),
+         STRAT = fct_relevel(STRAT, 
+                        c("I", "III", "IV", "V", "VI", "VII/IX", "X",
+                          "XI", "XII", "XIII", "XIV", "XV", "XVI",
+                          "XVII")),
+         
+         CORTEX = ifelse(CORTEX == "10-40%", "11-40%",
+                  ifelse(CORTEX == "40-60%", "41-60%",
+                  ifelse(CORTEX == "60-90%", "61-90%",
+                  ifelse(CORTEX == "90-99%", "91-99%", CORTEX)))))
+
+
+df <- df_raw |>
+  filter(RAWMATERIAL %in% c("Opaline/CCS", "Hornfels"),
+         (STRAT != "X" & STRAT != "XII" & STRAT != "IV")) |>
+  full_join(df_ratios) |>
+  mutate(fish_dens = (Fish_mass/100)/Volume_m3,
+         mammal_dens = (NonFish_mass/100)/Volume_m3,
+         STRAT_mod = round(fish_dens/mammal_dens, 2),
+         STRAT = factor(STRAT),
+         STRAT = droplevels(STRAT)) |>
+  drop_na(RAWMATERIAL)
+
+
+# take average core flake scar length
+df |>
+  dplyr::filter(ARTIFACTCLASS=="Core") |>
+  group_by(RAWMATERIAL)|>
+  dplyr::summarise(a = 
+                     mean(LENGHTLONGESTFLAKESCAR)) -> df.core_average
+
+
+
+# take average core flake scar length
+df |>
+  dplyr::filter(ARTIFACTCLASS=="Core") |>
+  group_by(RAWMATERIAL, STRAT) |>
+  summarize(Ave_FlakeLength = mean(LENGHTLONGESTFLAKESCAR)) -> core_size
+
+
+# set values for small, medium, and large slug effect sizes
+small <- 5.18
+
+
+# Subset data by flakes and flake variables
+core_bind <- full_join(core_size, df) |>
+  filter(ARTIFACTCLASS == "Flake" & COMPLETENESS == "Complete") |>
+  group_by(RAWMATERIAL, STRAT) |>
+  mutate(Utility_small = TECHLENGTH*(TECHLENGTH - small),
+         
+         Transport_small = Utility_small/((MAXTHICKNESS/TECHLENGTH)*TECHLENGTH^3),
+         
+         Reduction = TECHLENGTH/Ave_FlakeLength) -> df_flakes
+
+# Subset data by cores and core variables
+df_cores <- df |>
+  filter(ARTIFACTCLASS == "Core" & CORECOMPLETENESS == "Complete") |>
+  mutate(SA_Ellipse = (4*pi)*
+           ((((((MAXLENGTH/2)*(MAXWIDTH/2))^1.6075)+
+           (((MAXLENGTH/2)*(MAXTHICKNESS/2))^1.6075)+
+           (((MAXWIDTH/2)+(MAXTHICKNESS/2))^1.6075))/3)^(1/1.6075)))
+
+# Subset data by retouch and retouch variables
+df_retouch <- df |>
+  filter(ARTIFACTCLASS == "RetouchedTool" & RAWMATERIAL != "BWA UPPER 1" &
+           COMPLETENESS == "Complete") |>
+  mutate(Utility_small = TECHLENGTH*(TECHLENGTH - small),
+         
+         Transport_small = Utility_small/((MAXTHICKNESS/TECHLENGTH)*TECHLENGTH^3),) |>
+  select(1:11,21:27,29:60, Utility_small:Transport_small, STRAT_mod)
+
+```
+
+## Core Descriptions
+
+```{r}
+#| warning: false
+#| message: false
+########################## Conard typology #############################
+df_cores |>
+  group_by(STRAT_mod, RAWMATERIAL) |>
+  mutate(total = n()) |>
+  group_by(STRAT_mod, RAWMATERIAL, CONARDUNIFIEDTYPE, total) |>
+  count() |>
+  summarize(prop = n/total) |>
+  
+  ggplot(aes(x = factor(STRAT_mod, ordered = TRUE), y = prop, fill = factor(CONARDUNIFIEDTYPE)))+
+  geom_bar(stat = "identity") +
+  facet_wrap(~RAWMATERIAL) +
+  
+  labs(fill = "",
+       x = "Fish-to-Non Fish",
+       y = "Proportion") +
+  theme_minimal()+
+  theme_classic(base_size = 20)+
+  scale_fill_viridis_d()+
+  theme(axis.text.x = 
+          element_text(angle = 45, hjust = 1)) -> core_conard
+
+########################## Sub Typology #############################
+
+df_cores |>
+  filter(CORESUBTYPOLOGY %in% c("Bladelet", "Radial", "Irregular")) |>
+  group_by(STRAT_mod, RAWMATERIAL) |>
+  mutate(total = n()) |>
+  group_by(STRAT_mod, RAWMATERIAL, CORESUBTYPOLOGY, total) |>
+  count() |>
+  summarize(prop = n/total) |>
+  
+  ggplot(aes(x = factor(STRAT_mod,ordered = TRUE), y = prop, fill = factor(CORESUBTYPOLOGY)))+
+  geom_bar(stat = "identity") +
+  facet_wrap(~RAWMATERIAL) +
+  
+  labs(fill = "",
+       x = "Fish-to-Non Fish",
+       y = "Proportion") +
+  theme_minimal()+
+  theme_classic(base_size = 20)+
+  scale_fill_viridis_d()+
+  theme(axis.text.x = 
+          element_text(angle = 45, hjust = 1)) -> core_subtype
+
+```
+
+```{r}
+png("../results/figures/fig9.png", width = 290, height = 220,
+    units = "mm", res = 300)
+
+ggarrange(
+  core_conard,
+  align = "h",
+  common.legend = TRUE
+)
+
+dev.off()
+```
+
+```{r}
+png("../results/figures/fig10.png", width = 290, height = 220,
+    units = "mm", res = 300)
+
+ggarrange(
+  core_subtype,
+  align = "h",
+  common.legend = TRUE
+)
+
+dev.off()
+```
+
+###### Core Type Bayesian Test
+
+```{r}
+fit_df <- df_cores |>
+  mutate(STRAT_mod = as.factor(STRAT_mod)) |>
+  filter(RAWMATERIAL == "Opaline/CCS")
+
+my_prior <- c(
+  prior(normal(10, 5), class = "Intercept", dpar = "muCoreReducedPiece"),
+  prior(normal(15, 5), class = "Intercept", dpar = "muFlatBladelet"),
+  prior(normal(60, 10), class = "Intercept", dpar = "muIrregular"),
+  prior(normal(10, 5), class = "Intercept", dpar = "muRadial"),
+  prior(normal(5, 3), class = "Intercept", dpar = "muRiceGrain")
+)
+
+bayes_cat <- brm(CORESUBTYPOLOGY ~ 1 + (1 | STRAT_mod),
+                 family = categorical(),
+                 data = fit_df,
+                  prior = my_prior,
+                  iter = 4000,
+                  seed = 123,
+                  chains = 4,
+                  control = list(adapt_delta = 0.99),
+                  save_pars = save_pars(all = TRUE),
+                  cores = getOption("mc.cores", parallel::detectCores())
+)
+
+
+
+newdat <- expand.grid(
+  STRAT_mod = unique(fit_df$STRAT_mod)
+)
+
+props <- bayes_cat |>
+  epred_draws(
+    newdata = newdat,
+    re_formula = NULL   # include strat-level random effects
+  ) |>
+  group_by(STRAT_mod, .category) |>
+  summarise(
+    mean = mean(.epred),
+    l95  = quantile(.epred, 0.05),
+    u95  = quantile(.epred, 0.95),
+    .groups = "drop"
+  ) |>
+  rename("CORESUBTYPOLOGY" = ".category")
+
+
+
+ggplot(props, aes(x = STRAT_mod, y = mean, fill = CORESUBTYPOLOGY)) +
+  geom_col(position = "dodge") +
+  geom_errorbar(
+    aes(ymin = l95, ymax = u95),
+    position = position_dodge(width = 0.9),
+    width = 0.2
+  ) +
+  labs(
+    y = "Estimated proportion",
+    x = "Stratigraphic module",
+    fill = "Core Typology"
+  ) +
+  theme_minimal()
+
+
+```
+
+```{r}
+# posterior comparison
+pp <- fit_df |>
+  add_epred_draws(bayes_cat, ndraws = 500) |> 
+  group_by(.draw, STRAT_mod, .category) %>%
+  summarise(prob = mean(.epred), .groups = "drop")
+
+pp |>
+  filter(.category == "Bladelet") |>
+  pivot_wider(
+    names_from = c(STRAT_mod),
+    values_from = prob
+  ) |>
+  mutate(
+    diff1 = `0.28` - `0.47`,
+    diff2 = `0.28` - `0.53`,
+    diff3 = `0.28` - `0.62`,
+    diff4 = `0.28` - `0.98`,
+    diff5 = `0.28` - `1`,
+    diff6 = `0.28` - `1.14`,
+    diff7 = `0.28` - `1.21`,
+    diff8 = `0.28` - `3.5`,
+    diff9 = `0.28` - `3.56`,
+    diff10 = `0.28` - `3.73`,
+    diff11 = `0.28` - `5.53`,
+    
+    diff12 = `0.47` - `0.53`,
+    diff13 = `0.47` - `0.62`,
+    diff14 = `0.47` - `0.98`,
+    diff15 = `0.47` - `1`,
+    diff16 = `0.47` - `1.14`,
+    diff17 = `0.47` - `1.21`,
+    diff18 = `0.47` - `3.5`,
+    diff19 = `0.47` - `3.56`,
+    diff20 = `0.47` - `3.73`,
+    diff21 = `0.47` - `5.53`,
+    
+    diff22 = `0.53` - `0.62`,
+    diff23 = `0.53` - `0.98`,
+    diff24 = `0.53` - `1`,
+    diff25 = `0.53` - `1.14`,
+    diff26 = `0.53` - `1.21`,
+    diff27 = `0.53` - `3.5`,
+    diff28 = `0.53` - `3.56`,
+    diff29 = `0.53` - `3.73`,
+    diff30 = `0.53` - `5.53`,
+    
+    diff31 = `0.62` - `0.98`,
+    diff32 = `0.62` - `1`,
+    diff33 = `0.62` - `1.14`,
+    diff34 = `0.62` - `1.21`,
+    diff35 = `0.62` - `3.5`,
+    diff36 = `0.62` - `3.56`,
+    diff37 = `0.62` - `3.73`,
+    diff38 = `0.62` - `5.53`,
+    
+    diff39 = `0.98` - `1`,
+    diff40 = `0.98` - `1.14`,
+    diff41 = `0.98` - `1.21`,
+    diff42 = `0.98` - `3.5`,
+    diff43 = `0.98` - `3.56`,
+    diff44 = `0.98` - `3.73`,
+    diff45 = `0.98` - `5.53`,
+
+    diff46 = `1` - `1.14`,
+    diff47 = `1` - `1.21`,
+    diff48 = `1` - `3.5`,
+    diff49 = `1` - `3.56`,
+    diff50 = `1` - `3.73`,
+    diff51 = `1` - `5.53`,
+
+    diff52 = `1.14` - `1.21`,
+    diff53 = `1.14` - `3.5`,
+    diff54 = `1.14` - `3.56`,
+    diff55 = `1.14` - `3.73`,
+    diff56 = `1.14` - `5.53`,
+    
+    diff57= `1.21` - `3.5`,
+    diff58 = `1.21` - `3.56`,
+    diff59 = `1.21` - `3.73`,
+    diff60 = `1.21` - `5.53`,
+    
+    diff61 = `3.5` - `3.56`,
+    diff62 = `3.5` - `3.73`,
+    diff63 = `3.5` - `5.53`,
+
+    diff64 = `3.56` - `3.73`,
+    diff65 = `3.56` - `5.53`,
+    
+    diff66 = `3.73` - `5.53`
+    
+  ) |>
+  summarise(across(diff1:diff66, list(mean = mean, 
+                                      lwr = ~quantile(.x,probs = 0.05),
+                                      upr = ~quantile(.x,probs = 0.95)))) |>
+  
+  matrix(ncol = 3, nrow = 66, byrow = TRUE) |>
+  as_tibble() |>
+  rename("mu" = "V1", "lwr" = "V2", "upr" = "V3") |>
+  mutate(mu = as.numeric(mu),
+         lwr = as.numeric(lwr),
+         upr = as.numeric(upr)) 
+
+```
+
+```{r Dirchlet_Core_Ind_ter}
+fit_df <- df_cores |>
+  mutate(STRAT_mod = as.factor(STRAT_mod)) |>
+  filter(RAWMATERIAL == "Opaline/CCS")
+
+
+my_prior <- c(
+  prior(normal(15, 5), class = "Intercept", dpar = "muInclined"),
+  prior(normal(15, 5), class = "Intercept", dpar = "muParallel"),
+  prior(normal(70, 15), class = "Intercept", dpar = "muPlatform")
+)
+
+bayes_cat <- brm(CONARDUNIFIEDTYPE ~ 1 + (1 | STRAT_mod),
+                 family = categorical(),
+                 data = fit_df,
+                  prior = my_prior,
+                  iter = 4000,
+                  seed = 1234,
+                  chains = 4,
+                  control = list(adapt_delta = 0.99),
+                  save_pars = save_pars(all = TRUE),
+                  cores = getOption("mc.cores", parallel::detectCores())
+)
+
+
+newdat <- expand.grid(
+  STRAT_mod = unique(fit_df$STRAT_mod)
+)
+
+props <- bayes_cat |>
+  epred_draws(
+    newdata = newdat,
+    re_formula = NULL   # include strat-level random effects
+  ) |>
+  group_by(STRAT_mod, .category) |>
+  summarise(
+    mean = mean(.epred),
+    l95  = quantile(.epred, 0.05),
+    u95  = quantile(.epred, 0.95),
+    .groups = "drop"
+  ) |>
+  rename("CONARDUNIFIEDTYPOLOGY" = .category)
+
+
+
+ggplot(props, aes(x = STRAT_mod, y = mean, fill =CONARDUNIFIEDTYPOLOGY)) +
+  geom_col(position = "dodge") +
+  geom_errorbar(
+    aes(ymin = l95, ymax = u95),
+    position = position_dodge(width = 0.9),
+    width = 0.2
+  ) +
+  labs(
+    y = "Estimated proportion",
+    x = "Stratigraphic module",
+    fill = "Core Typology"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+# posterior comparison
+pp <- fit_df |>
+  add_epred_draws(bayes_cat, ndraws = 500) |> 
+  group_by(.draw, STRAT_mod, .category) |>
+  summarise(prob = mean(.epred), .groups = "drop")
+
+pp |>
+  filter(.category == "Bipolar") |>
+  pivot_wider(
+    names_from = c(STRAT_mod),
+    values_from = prob
+  ) |>
+  mutate(
+    diff1 = `0.28` - `0.47`,
+    diff2 = `0.28` - `0.53`,
+    diff3 = `0.28` - `0.62`,
+    diff4 = `0.28` - `0.98`,
+    diff5 = `0.28` - `1`,
+    diff6 = `0.28` - `1.14`,
+    diff7 = `0.28` - `1.21`,
+    diff8 = `0.28` - `3.5`,
+    diff9 = `0.28` - `3.56`,
+    diff10 = `0.28` - `3.73`,
+    diff11 = `0.28` - `5.53`,
+    
+    diff12 = `0.47` - `0.53`,
+    diff13 = `0.47` - `0.62`,
+    diff14 = `0.47` - `0.98`,
+    diff15 = `0.47` - `1`,
+    diff16 = `0.47` - `1.14`,
+    diff17 = `0.47` - `1.21`,
+    diff18 = `0.47` - `3.5`,
+    diff19 = `0.47` - `3.56`,
+    diff20 = `0.47` - `3.73`,
+    diff21 = `0.47` - `5.53`,
+    
+    diff22 = `0.53` - `0.62`,
+    diff23 = `0.53` - `0.98`,
+    diff24 = `0.53` - `1`,
+    diff25 = `0.53` - `1.14`,
+    diff26 = `0.53` - `1.21`,
+    diff27 = `0.53` - `3.5`,
+    diff28 = `0.53` - `3.56`,
+    diff29 = `0.53` - `3.73`,
+    diff30 = `0.53` - `5.53`,
+    
+    diff31 = `0.62` - `0.98`,
+    diff32 = `0.62` - `1`,
+    diff33 = `0.62` - `1.14`,
+    diff34 = `0.62` - `1.21`,
+    diff35 = `0.62` - `3.5`,
+    diff36 = `0.62` - `3.56`,
+    diff37 = `0.62` - `3.73`,
+    diff38 = `0.62` - `5.53`,
+    
+    diff39 = `0.98` - `1`,
+    diff40 = `0.98` - `1.14`,
+    diff41 = `0.98` - `1.21`,
+    diff42 = `0.98` - `3.5`,
+    diff43 = `0.98` - `3.56`,
+    diff44 = `0.98` - `3.73`,
+    diff45 = `0.98` - `5.53`,
+
+    diff46 = `1` - `1.14`,
+    diff47 = `1` - `1.21`,
+    diff48 = `1` - `3.5`,
+    diff49 = `1` - `3.56`,
+    diff50 = `1` - `3.73`,
+    diff51 = `1` - `5.53`,
+
+    diff52 = `1.14` - `1.21`,
+    diff53 = `1.14` - `3.5`,
+    diff54 = `1.14` - `3.56`,
+    diff55 = `1.14` - `3.73`,
+    diff56 = `1.14` - `5.53`,
+    
+    diff57= `1.21` - `3.5`,
+    diff58 = `1.21` - `3.56`,
+    diff59 = `1.21` - `3.73`,
+    diff60 = `1.21` - `5.53`,
+    
+    diff61 = `3.5` - `3.56`,
+    diff62 = `3.5` - `3.73`,
+    diff63 = `3.5` - `5.53`,
+
+    diff64 = `3.56` - `3.73`,
+    diff65 = `3.56` - `5.53`,
+    
+    diff66 = `3.73` - `5.53`
+    
+  ) |>
+  summarise(across(diff1:diff66, list(mean = mean, 
+                                      lwr = ~quantile(.x,probs = 0.05),
+                                      upr = ~quantile(.x,probs = 0.95)))) |>
+  
+  matrix(ncol = 3, nrow = 66, byrow = TRUE) |>
+  as_tibble() |>
+  rename("mu" = "V1", "lwr" = "V2", "upr" = "V3") |>
+  mutate(mu = as.numeric(mu),
+         lwr = as.numeric(lwr),
+         upr = as.numeric(upr)) 
+
+```
+
+#### Core exploited faces to mass
+
+```{r}
+fit_df <- df_cores |>
+  mutate(CE = EXPLOITEDFACES/MASS,
+         STRAT_mod_s = as.numeric(scale(STRAT_mod, center=T, scale = T)),
+         SDI = SCARCOUNT/SA_Ellipse)
+
+CE_prior <- 
+  prior(normal(0, 0.5), class = "Intercept")+
+  prior(normal(1, 0.5), class = "b", 
+        coef = "RAWMATERIALOpalineDCCS")+
+  prior(normal(0, 1), class = "b", coef = "STRAT_mod_s")+
+  prior(normal(1, 0.5), class = "b", 
+        coef = "STRAT_mod_s:RAWMATERIALOpalineDCCS")+
+  
+  prior(gamma(2, 0.5), class = "shape")
+
+
+
+fit_CE <- brm(SDI ~ STRAT_mod_s*RAWMATERIAL,
+               data = fit_df,
+  family = Gamma(link = "log"),
+  prior = CE_prior,
+  cores = getOption("mc.cores", parallel::detectCores()),
+  chains = 2,
+  iter = 4000,
+  seed = 12345
+)
+
+fit_CE_poly <- brm(SDI ~ poly(STRAT_mod_s, 2)*RAWMATERIAL,
+               data = fit_df,
+  family = Gamma(link = "log"),
+  #prior = CE_prior,
+  cores = getOption("mc.cores", parallel::detectCores()),
+  chains = 2,
+  iter = 4000,
+  seed = 12345777
+)
+
+```
+
+```{r}
+#| include: false
+
+# Posterior checks for individual data
+
+pp_check(fit_CE, type = "dens_overlay",
+         group = "STRAT_mod_s")
+pp_check(fit_CE, type = "stat", 
+         group = "STRAT_mod_s")
+pp_check(fit_CE, type = "scatter_avg",
+         group = "STRAT_mod_s")
+
+pp_check(fit_CE, type = "dens_overlay_grouped", 
+         group = "RAWMATERIAL")
+pp_check(fit_CE, type = "stat_grouped", 
+         group = "RAWMATERIAL")
+pp_check(fit_CE, type = "scatter_avg_grouped",
+         group = "RAWMATERIAL")
+
+loo1 <- loo(fit_CE, moment_match = T)
+plot(loo1)
+
+pp_check(fit_CE_poly, type = "dens_overlay",
+         group = "STRAT_mod_s")
+pp_check(fit_CE_poly, type = "stat", 
+         group = "STRAT_mod_s")
+pp_check(fit_CE_poly, type = "scatter_avg",
+         group = "STRAT_mod_s")
+
+pp_check(fit_CE_poly, type = "dens_overlay_grouped", 
+         group = "RAWMATERIAL")
+pp_check(fit_CE_poly, type = "stat_grouped", 
+         group = "RAWMATERIAL")
+pp_check(fit_CE_poly, type = "scatter_avg_grouped",
+         group = "RAWMATERIAL")
+
+loo2 <- loo(fit_CE_poly, moment_match = T)
+plot(loo2)
+
+loo_compare(loo1, loo2)
+```
+
+```{r}
+new_data <- expand.grid(
+  STRAT_mod_s = seq(min(fit_df$STRAT_mod_s),
+                  max(fit_df$STRAT_mod_s), length.out = 100),
+  RAWMATERIAL = unique(fit_df$RAWMATERIAL)
+)
+
+
+epred_draws(fit_CE, newdata = new_data) |>
+  median_qi(.epred, .width = 0.9) |>
+  
+  ggplot(aes(x = STRAT_mod_s, y = .epred,
+             color = RAWMATERIAL, fill = RAWMATERIAL)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper),
+              alpha = 0.2, color = NA) +
+  scale_fill_viridis_d() +
+  scale_color_viridis_d() +
+  scale_y_continuous("") +
+  labs(x = "Fish → Non-fish (Standardized)") +
+  theme(legend.title = "") +
+  theme_classic(base_size = 18) -> plot_CE1
+
+```
+
+```{r}
+post <- as_draws_df(fit_CE) |>
+  mutate(CCS = b_STRAT_mod_s +
+           `b_STRAT_mod_s:RAWMATERIALOpalineDCCS`,
+         Hornfels = b_STRAT_mod_s) |>
+  pivot_longer(CCS:Hornfels,
+               values_to = "Slope", names_to = "Rawmaterial") |>
+  select(Slope, Rawmaterial) |>
+  group_by(Rawmaterial) |>
+  summarize(`Prob(>0)` = mean(Slope > 0))
+
+post
+```
+
+#### ANOVA
+
+```{r}
+CE_prior <- 
+  prior(normal(0, 0.5), class = "Intercept")+
+  prior(normal(1, 0.5), class = "b", 
+        coef = "RAWMATERIALOpalineDCCS")+
+  prior(normal(0, 1), class = "b", coef = "STRAT_mod_s")+
+  prior(normal(1, 0.5), class = "b", 
+        coef = "STRAT_mod_s:RAWMATERIALOpalineDCCS")+
+  
+  prior(gamma(2, 0.5), class = "shape")
+
+
+
+fit_CE_anova <- brm(SDI ~ STRAT_mod*RAWMATERIAL,
+               data = fit_df,
+  family = Gamma(link = "log"),
+  #prior = CE_prior,
+  cores = getOption("mc.cores", parallel::detectCores()),
+  chains = 4,
+  iter = 4000,
+  seed = 112233
+)
+```
+
+```{r}
+#| include: false
+
+
+pp_check(fit_CE_anova, type = "dens_overlay_grouped",
+         group = "STRAT_mod")
+pp_check(fit_CE_anova, type = "stat_grouped", 
+         group = "STRAT_mod")
+pp_check(fit_CE_anova, type = "scatter_avg_grouped",
+         group = "STRAT_mod")
+
+pp_check(fit_CE_anova, type = "dens_overlay_grouped", 
+         group = "RAWMATERIAL")
+pp_check(fit_CE_anova, type = "stat_grouped", 
+         group = "RAWMATERIAL")
+pp_check(fit_CE_anova, type = "scatter_avg_grouped",
+         group = "RAWMATERIAL")
+
+loo2 <- loo(fit_CE_anova, moment_match = T)
+plot(loo2)
+```
+
+```{r}
+fit_CE_anova |>
+  epred_draws(
+    newdata = distinct(fit_df, STRAT_mod, RAWMATERIAL)
+    ) |>
+  #filter(.epred < 3.5) |>
+  ggplot() +
+  stat_halfeye(aes(x = factor(STRAT_mod), y = .epred, fill = RAWMATERIAL),
+               .width = c(.90, .5), scale = 0, linewidth = 1, point_size = 0.7,
+               adjust = 0.8, width = 0.6,
+               orientation = "vertical", point_interval = "median_qi")+
+  facet_wrap(~RAWMATERIAL, scales = "free") +
+  theme_minimal()+
+  theme(legend.title = element_blank())+
+  theme_classic(base_size = 18)+
+  guides(color = "none")+
+    theme(axis.text.x = 
+          element_text(angle = 45, hjust = 1),
+          text = element_text(size = 18),
+          legend.position = "none") +
+  ylab("Posterior Median Scar Density Index") + 
+  xlab("Fish-to-Non Fish") -> plot_CE2
+```
+
+```{r}
+png("../results/figures/fig11.png", width = 290, height = 220,
+    units = "mm", res = 300)
+
+
+ggarrange(
+  plot_CE2, plot_CE1, nrow = 2,
+  font.label = list(size = 25, face = "bold"),
+  common.legend = FALSE, labels = c("A", "B"),
+  widths = c(2, 1), heights = c(1.5, 1),
+  label.y = c(0.98, 1.11),
+  label.x = c(0.04, 0.04)
+)
+
+dev.off()
+```
+
+#### Create volume estimate
+
+```{r coreVolumeRemoved}
+df_flakes |>
+  select(RAWMATERIAL, STRAT_mod, PLATFORMTHICKNESS, MAXTHICKNESS) |>
+  group_by(RAWMATERIAL, STRAT_mod) |>
+  na.omit() |>
+  summarize(m_plat = mean(PLATFORMTHICKNESS),
+            m_thick = mean(MAXTHICKNESS)) |>
+  arrange(STRAT_mod, RAWMATERIAL) -> flake_vr
+
+flake_vr |>
+  left_join(df_cores) |>
+  select(m_plat, m_thick,
+         STRAT, STRAT_mod, RAWMATERIAL, MAXLENGTH, MAXWIDTH, MAXTHICKNESS,
+         FLAKEGENERATIONSTHICKNESS, FLAKEGENERATIONSLENGTH, FLAKEGENERATIONSWIDTH,
+         SA_Ellipse, SCARCOUNT) |>
+  na.omit() |>
+  group_by(RAWMATERIAL, STRAT_mod) |>
+  mutate(V = pi*(4/3)*(MAXLENGTH/2)*(MAXWIDTH/2)*(MAXTHICKNESS/2),
+         VR = pi*(4/3)*((MAXLENGTH + (m_plat*FLAKEGENERATIONSLENGTH))/2)*
+                       ((MAXWIDTH + (m_plat*FLAKEGENERATIONSWIDTH))/2)*
+                       ((MAXTHICKNESS + (m_thick*FLAKEGENERATIONSTHICKNESS))/2),
+         volume_removed = (V/VR)*100,
+         
+         SDI = SCARCOUNT/SA_Ellipse) |>
+  select(STRAT_mod, RAWMATERIAL,
+         V, VR, volume_removed, SDI, SA_Ellipse)-> cores_vr
+
+```
+
+```{r}
+# Refine outliers and define priors and run bayesian model
+lm_red <- cores_vr |>
+  filter(V < 60000,
+         V > 0)
+
+
+fit_df <- lm_red |>
+  filter(RAWMATERIAL == "Opaline/CCS") |>
+  mutate(Utility_s = V/1000,
+         Reduction_s = scale(VR, center = T, scale = T),
+         STRAT_mod = factor(STRAT_mod))|>
+  select(Utility_s, Reduction_s, STRAT_mod) |>
+  na.omit()
+
+
+simple1 <- brm(Utility_s ~ 1,
+              data = fit_df,
+              family = Gamma(link = "log"),
+              iter = 2000,
+              chains = 2,
+              seed = 111,
+              #prior=my_prior,
+              save_pars = save_pars(all = TRUE),
+              cores = getOption("mc.cores", 14))
+
+simple2 <- brm(Utility_s ~ 1 + Reduction_s,
+              data = fit_df,
+              family = Gamma(link = "log"),
+              iter = 2000,
+              chains = 2,
+              seed = 1112,
+              #prior=my_prior,
+              save_pars = save_pars(all = TRUE),
+              cores = getOption("mc.cores", 14))
+
+simple3 <- brm(Utility_s ~ 1 + Reduction_s + STRAT_mod,
+              data = fit_df,
+              family = Gamma(link = "log"),
+              iter = 2000,
+              chains = 2,
+              seed = 1113,
+              #prior=my_prior,
+              save_pars = save_pars(all = TRUE),
+              cores = getOption("mc.cores", 14))
+
+############## POLYNOMIAL ##############
+poly1 <- brm(Utility_s ~ 1 + poly(Reduction_s, 2, raw = TRUE),
+              data = fit_df,
+              family = Gamma(link = "log"),
+              iter = 2000,
+              chains = 2,
+              seed = 1114,
+              #prior=my_prior,
+              save_pars = save_pars(all = TRUE),
+              cores = getOption("mc.cores", 14))
+
+poly2 <- brm(Utility_s ~ 1 + poly(Reduction_s, 2, raw = TRUE) + 
+               STRAT_mod,
+              data = fit_df,
+              family = Gamma(link = "log"),
+              iter = 2000,
+              chains = 2,
+              seed = 1115,
+              #prior=my_prior,
+              save_pars = save_pars(all = TRUE),
+              cores = getOption("mc.cores", 14))
+
+poly5 <- brm(Utility_s ~ 1 + poly(Reduction_s, 2, raw = TRUE)* 
+              STRAT_mod,
+              data = fit_df,
+              family = Gamma(link = "log"),
+              iter = 2000,
+              chains = 2,
+              seed = 21734816,
+              control = list(max_treedepth = 12),
+              #prior=my_prior,
+              save_pars = save_pars(all = TRUE),
+              cores = getOption("mc.cores", parallel::detectCores()))
+
+
+################# MULTILEVEL ####################
+multi1 <- brm(Utility_s ~ 1 + poly(Reduction_s, 2, raw = TRUE) +
+            (0 + poly(Reduction_s, 2, raw = TRUE) | STRAT_mod),
+              data = fit_df,
+              family = Gamma(link = "log"),
+              iter = 2000,
+              chains = 2,
+              seed = 1117,
+              #prior=my_prior,
+              save_pars = save_pars(all = TRUE),
+              cores = getOption("mc.cores", 14))
+
+
+multi3 <- brm(Utility_s ~ 1 + STRAT_mod +
+                poly(Reduction_s, 2, raw = TRUE) +
+            (0 + poly(Reduction_s, 2,
+                      raw = TRUE) | STRAT_mod),
+              data = fit_df,
+              family = Gamma(link = "log"),
+              iter = 2000,
+              chains = 2,
+              seed = 1118007,
+              #prior=my_prior,
+              save_pars = save_pars(all = TRUE),
+              cores = getOption("mc.cores", 14))
+
+```
+
+```{r}
+simple1_loo <- loo(simple1)
+simple2_loo <- loo(simple2)
+simple3_loo <- loo(simple3)
+
+poly1_loo <- loo(poly1)
+poly2_loo <- loo(poly2)
+poly5_loo <- loo(poly5)
+
+multi1_loo <- loo(multi1)
+multi3_loo <- loo(multi3)
+
+loo_compare(simple1_loo, simple2_loo, simple3_loo,
+            poly1_loo, poly2_loo, poly5_loo,
+            multi1_loo, multi3_loo)
+
+# remove all models of lesser fit to save space
+remove(list = c("simple1", "simple2", "simple3", "poly1", "poly3",
+                "poly2", "poly4", "poly5", "poly6",
+                "multi1"))
+```
+
+```{r}
+
+x_seq <- seq(min(fit_df$Reduction_s, na.rm = TRUE),
+             max(fit_df$Reduction_s, na.rm = TRUE),
+             length.out = 100)
+
+draws <- as_draws_df(multi3)
+
+# All combinations of grouping levels
+slope_draws <- expand_grid(
+  draws,
+  Reduction_s = x_seq,
+  STRAT_mod = unique(fit_df$STRAT_mod)
+) |>
+  mutate(
+    eta = b_Intercept +
+          b_polyReduction_s2rawEQTRUE1 * Reduction_s +
+          b_polyReduction_s2rawEQTRUE2 * Reduction_s^2,
+
+    slope = exp(eta) *
+            (b_polyReduction_s2rawEQTRUE1 +
+             2 * b_polyReduction_s2rawEQTRUE2 * Reduction_s)
+  )
+
+
+slope_summary <- slope_draws |>
+  group_by(Reduction_s) |>
+  summarise(
+    mean = mean(slope),
+    lwr = quantile(slope, 0.05),
+    upr = quantile(slope, 0.95),
+    .groups = "drop"
+  )
+
+
+ggplot(slope_summary, aes(Reduction_s, mean)) +
+  geom_line(linewidth = 1) +
+  geom_ribbon(aes(ymin = lwr, ymax = upr),
+              alpha = 0.25) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    x = "Reduction_s",
+    y = "Marginal slope of Utility",
+    title = "Marginal effect of Reduction on Utility"
+  ) +
+  theme_minimal()
+
+
+
+pp <- conditional_effects(
+  multi3,
+  effects = "Reduction_s",
+  re_formula = NA
+)
+
+plot(pp, points = TRUE)
+```
+
+```{r}
+x_seq <- seq(min(fit_df$Reduction_s, na.rm = TRUE),
+             max(fit_df$Reduction_s, na.rm = TRUE),
+             length.out = 100)
+
+draws <- as_draws_df(multi3)
+ranef <- ranef(multi3)$`STRAT_mod`[,,]
+
+
+groups_to_plot <- fit_df |>
+  count(STRAT_mod) |>
+  rename("group" = "STRAT_mod") |>
+  arrange(desc(n)) |>
+  pull(group)
+
+
+
+slope_group_draws <- map_dfr(groups_to_plot, function(g) {
+
+  
+  g1 <- paste0("r_STRAT_mod[", g, ",polyReduction_s2rawEQTRUE1]")
+  g2 <- paste0("r_STRAT_mod[", g, ",polyReduction_s2rawEQTRUE2]")
+
+  expand_grid(
+    draws,
+    Reduction_s = x_seq
+  ) |>
+    mutate(
+      group = g,
+
+      b1g = b_polyReduction_s2rawEQTRUE1 + .data[[g1]],
+      b2g = b_polyReduction_s2rawEQTRUE2 + .data[[g2]],
+
+      eta = b_Intercept +
+            b1g * Reduction_s +
+            b2g * Reduction_s^2,
+
+      slope = exp(eta) * (b1g + 2 * b2g * Reduction_s)
+    )
+})
+
+
+slope_group_summary <- slope_group_draws |>
+  group_by(group, Reduction_s) |>
+  summarise(
+    mean = mean(slope),
+    lwr = quantile(slope, 0.05),
+    upr = quantile(slope, 0.95),
+    .groups = "drop"
+  )
+
+ggplot(slope_group_summary,
+       aes(Reduction_s, mean)) +
+  geom_line(linewidth = 1) +
+  geom_ribbon(aes(ymin = lwr, ymax = upr),
+              alpha = 0.25) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~ group, scales = "free_y") +
+  labs(
+    x = "Reduction (Scaled)",
+    y = expression(Delta~"Utility-to-Reduction"),
+  ) +
+  theme_minimal()
+```
+
+```{r}
+# Probability slopes are greater than 0
+positive_prob <- slope_group_draws |>
+  group_by(group, Reduction_s) |>
+  summarise(
+    Pr_positive = mean(slope > 0),
+    .groups = "drop"
+  ) |> 
+  
+  filter(Pr_positive > 0.89) |>
+  group_by(group) |>
+  summarize(max = max(Reduction_s))
+
+positive_prob
+
+# Expected slope for each strat at specified reduction value
+em_slopes_resp <- emtrends(
+  multi3,
+  ~ STRAT_mod,
+  var = "Reduction_s",
+  # Compute from the minimum significant slope for all strats
+  at = list(Reduction_s = c(min(positive_prob$max))),
+  type = "response",
+  allow_new_levels = TRUE,
+  re_formula = NULL
+)
+plot(em_slopes_resp)+
+  xlab(expression(Delta*"Utility-to-Reduction"))+
+  ylab("Ratio")
+pairs(em_slopes_resp)
+
+
+# Expected Utility for each strat at specified reduction value
+em_slopes_resp <- emmeans(
+  multi3,
+  ~ STRAT_mod,
+  var = "Reduction_s",
+  # Compute from the minimum significant slope for all strats
+  at = list(Reduction_s = c(min(positive_prob$max))),
+  type = "response",
+  allow_new_levels = TRUE,
+  re_formula = NULL
+)
+plot(em_slopes_resp)
+pairs(em_slopes_resp)
+```
