@@ -24,10 +24,8 @@ library(cowplot)
 library(ggforce)
 
 library(infer)
-#library(rcompanion)
 library(purrr)
 library(modelr)
-#library(rcompanion)
 library(viridis)
 
 library(scales)
@@ -48,6 +46,7 @@ library(tidyverse)
 library(dplyr)
 library(forcats)
 library(tidybayes)
+library(here)
 
 # Bayesian models
 library(brms)
@@ -63,13 +62,14 @@ library(posterior)
 #| warning: false
 
 # Read and clean the data
+dir = here::here()
 
-df_24 <- read_csv("../data/AG_Winter2024_LIK_Final.csv")
-df_25 <- read_csv("../data/AG_Summer2025_LIK_Final.csv") |>
+df_24 <- read_csv(paste0(dir, "/data/AG_Winter2024_LIK_Final.csv"))
+df_25 <- read_csv(paste0(dir, "/data/AG_Summer2025_LIK_Final.csv")) |>
   mutate(MASS = as.numeric(MASS)) |>
   select(-"...72")
 
-df_ratios <- read_csv("../data/LIK_RiverTerr_Ratios.csv") |>
+df_ratios <- read_csv(paste0(dir, "/data/LIK_RiverTerr_Ratios.csv")) |>
   rename("STRAT" = "Strat")
 
 # Merge dataframes
@@ -172,8 +172,6 @@ df_retouch <- df |>
 
 ### Cutting edge-to-mass
 
-#### Scaled Data
-
 ```{r}
 fit_df <- df_flakes |>
   ungroup() |>
@@ -183,6 +181,8 @@ fit_df <- df_flakes |>
 
 fit_df$STRAT_mod_s <- as.numeric(scale(fit_df$STRAT_mod,
                                        scale = T, center = T))
+
+#fit_df <- fit_df |> mutate(STRAT_mod = factor(STRAT_mod))
 ```
 
 ```{r}
@@ -256,7 +256,7 @@ epred_draws(fit_CE, newdata = new_data) |>
   labs(fill = NULL,
        color = NULL) +
   scale_y_continuous("") +
-  labs(x = "Non Fish → Fish (Standardized)") +
+  labs(x = "Mammal → Fish (Standardized)") +
   theme(legend.title = "") +
   theme_classic(base_size = 18) -> CE1
 ```
@@ -275,9 +275,35 @@ post <- as_draws_df(fit_CE) |>
 post
 ```
 
-#### ANOVA
-
 ```{r}
+CE_prior <- 
+  prior(normal(0.5, 1),class ="Intercept")+
+
+  prior(normal(0.5, 0.5),class ="b",coef = "RAWMATERIALOpalineDCCS")+
+  prior(normal(0.5, 0.5),class ="b",coef = "STRAT_mod0.09:RAWMATERIALOpalineDCCS")+
+  prior(normal(0.5, 0.5),class ="b",coef = "STRAT_mod0.1:RAWMATERIALOpalineDCCS")+
+  prior(normal(0.5, 0.5),class ="b",coef = "STRAT_mod0.2:RAWMATERIALOpalineDCCS")+
+  prior(normal(0.5, 0.5),class ="b",coef = "STRAT_mod0.3:RAWMATERIALOpalineDCCS")+
+  prior(normal(0.5, 0.5),class ="b",coef = "STRAT_mod0.82:RAWMATERIALOpalineDCCS")+
+  prior(normal(0, 0.5),class ="b",coef = "STRAT_mod1.08:RAWMATERIALOpalineDCCS")+
+  prior(normal(0, 0.5),class ="b",coef = "STRAT_mod1.44:RAWMATERIALOpalineDCCS")+
+  prior(normal(0, 0.5),class ="b",coef = "STRAT_mod2.15:RAWMATERIALOpalineDCCS")+
+  prior(normal(0, 0.5),class ="b",coef = "STRAT_mod2.88:RAWMATERIALOpalineDCCS")+
+  prior(normal(0, 0.5),class ="b",coef = "STRAT_mod3.37:RAWMATERIALOpalineDCCS")+
+    
+  prior(normal(0.5, 1),class ="b",coef = "STRAT_mod0.09")+
+  prior(normal(0.5, 1),class ="b",coef = "STRAT_mod0.1")+
+  prior(normal(0.5, 1),class ="b",coef = "STRAT_mod0.2")+
+  prior(normal(0.5, 1),class ="b",coef = "STRAT_mod0.3")+
+  prior(normal(0.5, 1),class ="b",coef = "STRAT_mod0.82")+
+  prior(normal(-0.5, 1),class ="b",coef = "STRAT_mod1.08")+
+  prior(normal(-0.5, 1),class ="b",coef = "STRAT_mod1.44")+
+  prior(normal(-0.5, 1),class ="b",coef = "STRAT_mod2.15")+
+  prior(normal(-0.5, 1),class ="b",coef = "STRAT_mod2.88")+
+  prior(normal(-0.5, 1),class ="b",coef = "STRAT_mod3.37")+
+  
+  prior(gamma(2, 0.5), class = "shape")
+
 CE_prior <- 
   prior(normal(0, 0.5), class = "Intercept")+
   prior(normal(1, 0.5), class = "b", 
@@ -328,7 +354,6 @@ fit_CE_anova |>
   epred_draws(
     newdata = distinct(fit_df, STRAT_mod, RAWMATERIAL)
     ) |>
-  #filter(.epred < 3.5) |>
   ggplot() +
   stat_halfeye(aes(x = factor(STRAT_mod), y = .epred, fill = RAWMATERIAL),
                .width = c(.90, .5), scale = 0, linewidth = 1, point_size = 0.7,
@@ -344,11 +369,24 @@ fit_CE_anova |>
           text = element_text(size = 18),
           legend.position = "none") +
   ylab("Posterior Median Cutting Edge") + 
-  xlab("Fish-to-Non Fish") -> CE2
+  xlab("Fish-to-Mammal") -> CE2
+
+
+# Test pairwise comparisons
+pws_tmp <- pairs(emmeans(fit_CE_anova, ~ STRAT_mod | RAWMATERIAL), 
+                 level = 0.90, adjust = "tukey")
+
+
+# Pairwise comparison
+pws_tmp <- pairs(pws_tmp)
+df_tmp <- summary(pws_tmp, infer = TRUE)
+write.csv(file = paste0(dir,"/results/tables/", "Cutting_edge_pairwise.csv"),
+          x = as.data.frame(df_tmp))
+
 ```
 
 ```{r}
-png("../results/figures/fig6.png", width = 290, height = 220,
+png(paste0(dir,"/results/figures/fig10.png"), width = 290, height = 220,
     units = "mm", res = 300)
 
 ggarrange(
@@ -365,8 +403,6 @@ dev.off()
 
 ### Flake elongation
 
-#### Scaled Data
-
 ```{r}
 fit_df <- df_flakes |>
   ungroup() |>
@@ -377,8 +413,7 @@ fit_df <- df_flakes |>
 fit_df$STRAT_mod_s <- as.numeric(scale(fit_df$STRAT_mod,
                                        scale = T, center = T))
 
-fit_df <- fit_df |>
-  mutate(STRAT_mod = factor(STRAT_mod))
+#fit_df <- fit_df |> mutate(STRAT_mod = factor(STRAT_mod))
 ```
 
 ```{r}
@@ -451,7 +486,7 @@ epred_draws(fit_Elong, newdata = new_data) |>
   labs(fill = NULL,
        color = NULL) +
   scale_y_continuous("") +
-  labs(x = "Fish → Non-fish (Standardized)") +
+  labs(x = "Mammal → Fish (Standardized)") +
   theme(legend.title = "") +
   theme_classic(base_size = 18) -> Elong1
 ```
@@ -475,6 +510,35 @@ post
 ```{r}
 # Gamma prior for individual layers and Mass
 Elong_Prior <- 
+  prior(normal(0.5, 1),class ="Intercept")+
+
+  prior(normal(0.5, 0.5),class ="b",coef = "RAWMATERIALOpalineDCCS")+
+  prior(normal(0.5, 0.5),class ="b",coef = "STRAT_mod0.09:RAWMATERIALOpalineDCCS")+
+  prior(normal(0.5, 0.5),class ="b",coef = "STRAT_mod0.1:RAWMATERIALOpalineDCCS")+
+  prior(normal(0.5, 0.5),class ="b",coef = "STRAT_mod0.2:RAWMATERIALOpalineDCCS")+
+  prior(normal(0.5, 0.5),class ="b",coef = "STRAT_mod0.3:RAWMATERIALOpalineDCCS")+
+  prior(normal(0.5, 0.5),class ="b",coef = "STRAT_mod0.82:RAWMATERIALOpalineDCCS")+
+  prior(normal(0, 0.5),class ="b",coef = "STRAT_mod1.08:RAWMATERIALOpalineDCCS")+
+  prior(normal(0, 0.5),class ="b",coef = "STRAT_mod1.44:RAWMATERIALOpalineDCCS")+
+  prior(normal(0, 0.5),class ="b",coef = "STRAT_mod2.15:RAWMATERIALOpalineDCCS")+
+  prior(normal(0, 0.5),class ="b",coef = "STRAT_mod2.88:RAWMATERIALOpalineDCCS")+
+  prior(normal(0, 0.5),class ="b",coef = "STRAT_mod3.37:RAWMATERIALOpalineDCCS")+
+    
+  prior(normal(0.5, 1),class ="b",coef = "STRAT_mod0.09")+
+  prior(normal(0.5, 1),class ="b",coef = "STRAT_mod0.1")+
+  prior(normal(0.5, 1),class ="b",coef = "STRAT_mod0.2")+
+  prior(normal(0.5, 1),class ="b",coef = "STRAT_mod0.3")+
+  prior(normal(0.5, 1),class ="b",coef = "STRAT_mod0.82")+
+  prior(normal(-0.5, 1),class ="b",coef = "STRAT_mod1.08")+
+  prior(normal(-0.5, 1),class ="b",coef = "STRAT_mod1.44")+
+  prior(normal(-0.5, 1),class ="b",coef = "STRAT_mod2.15")+
+  prior(normal(-0.5, 1),class ="b",coef = "STRAT_mod2.88")+
+  prior(normal(-0.5, 1),class ="b",coef = "STRAT_mod3.37")+
+  
+  prior(gamma(2, 0.5), class = "shape")
+
+
+Elong_Prior <- 
   prior(normal(0, 0.5), class = "Intercept")+
   prior(normal(1, 0.5), class = "b", 
         coef = "RAWMATERIALOpalineDCCS")+
@@ -484,12 +548,11 @@ Elong_Prior <-
   
   prior(gamma(2, 0.5), class = "shape")
 
-
 fit_Elong_anova <- brm(
   Elong ~ STRAT_mod*RAWMATERIAL,
   data = fit_df,
   family = Gamma(link = "log"),
-  #prior = Elong_prior,
+  prior = Elong_Prior,
   cores = getOption("mc.cores", parallel::detectCores()),
   chains = 4,
   iter = 4000,
@@ -524,9 +587,8 @@ fit_Elong_anova |>
   epred_draws(
     newdata = distinct(fit_df, STRAT_mod, RAWMATERIAL)
     ) |>
-  filter(.epred < 3.5) |>
   ggplot() +
-  stat_halfeye(aes(x = STRAT_mod, y = .epred, fill = RAWMATERIAL),
+  stat_halfeye(aes(x = factor(STRAT_mod), y = .epred, fill = RAWMATERIAL),
                .width = c(.90, .5), scale = 0, linewidth = 1, point_size = 0.7,
                adjust = 0.8, width = 0.6,
                orientation = "vertical", point_interval = "median_qi")+
@@ -540,11 +602,11 @@ fit_Elong_anova |>
           text = element_text(size = 18),
           legend.position = "none") +
   ylab("Posterior Median Elongation") + 
-  xlab("Fish-to-Nonfish") -> Elong2
+  xlab("Mammal-to-Fish") -> Elong2
 ```
 
 ```{r}
-png("../results/figures/fig7.png", width = 290, height = 220,
+png("../results/figures/fig11.png", width = 290, height = 220,
     units = "mm", res = 300)
 
 ggarrange(
@@ -559,11 +621,27 @@ ggarrange(
 dev.off()
 ```
 
+```{r}
+# Posterior distribution
+post <- as_draws_df(fit_Elong) |>
+  mutate(Opaline = b_STRAT_mod_s +
+           `b_STRAT_mod_s:RAWMATERIALOpalineDCCS`,
+         Hornfels = b_STRAT_mod_s) |>
+  pivot_longer(Opaline:Hornfels,
+               values_to = "Slope", names_to = "Rawmaterial") |>
+  select(Slope, Rawmaterial) |>
+  group_by(Rawmaterial) |>
+  summarize(`Prob(>0)` = mean(Slope > 0))
+
+post
+```
+
 ## Flake Utility
 
 ```{r}
 fit_df <- df_flakes |>
   ungroup() |>
+  
   # filter by outliers and variables with < 10 observations
   filter(Utility_small < 5000,
          Utility_small > 0) |>
@@ -620,20 +698,6 @@ my_prior <-
   prior(exponential(1), class = "sd")
 
 
-model_hyp4 <- brm(Utility_s ~ poly(Reduction_s, 2, raw = TRUE) + 
-                    STRAT_mod:RAWMATERIAL +
-                    (0 + poly(Reduction_s, 2, raw = TRUE)|STRAT_mod),
-              data = fit_df,
-              family = Gamma(link = "log"),
-              iter = 2000,
-              chains = 2,
-              seed = 7707707,
-              #prior=my_prior,
-              control = list(max_treedepth = 15,
-                             adapt_delta = 0.95),
-              save_pars = save_pars(all = TRUE),
-              cores = getOption("mc.cores", parallel::detectCores()))
-
 pp_check(model_hyp1)
 pp_check(model_hyp1, "scatter_avg_grouped", group = "STRAT_mod")
 
@@ -643,91 +707,8 @@ pp_check(model_hyp2, "scatter_avg_grouped", group = "RAWMATERIAL")
 
 loo1 <- loo(model_hyp1)
 loo2 <- loo(model_hyp2)
-loo4<- loo(model_hyp4)
-loo_compare(loo1, loo2, loo4)
+loo_compare(loo1, loo2)
 
-pp_check(model_hyp4)
-
-```
-
-```{r}
-poly3 <- brm(Utility_s ~ 1 + poly(Reduction_s, 2, raw = TRUE) + 
-               STRAT_mod*RAWMATERIAL,
-              data = fit_df,
-              family = Gamma(link = "log"),
-              iter = 2000,
-              chains = 2,
-              seed = 1116,
-              #prior=my_prior,
-              save_pars = save_pars(all = TRUE),
-              cores = getOption("mc.cores", 14))
-```
-
-```{r}
-#| include: false
-
-my_prior <-
-
-  # Intercept
-  prior(normal(0.5,1), class = Intercept)+
-  
-  # Polynomial factor 1
-  prior(normal(0.5,1), class = b,
-        coef = "polyReduction_s2raweqtrue1")+
-
-  # Polynomial factor 2
-  prior(normal(0.5,0.5), class = b,
-        coef = "polyReduction_s2rawEQTRUE2")+
-  
-  prior(normal(1,0.5), class = b,
-        coef = "RAWMATERIALOpalineDCCS")+
-  
-  prior(normal(-0.5,1), class = b,
-        coef = "STRAT_mod0.47")+
-  prior(normal(-0.5,1), class = b,
-        coef = "STRAT_mod0.53")+
-  prior(normal(-0.5,1), class = b,
-        coef = "STRAT_mod0.62")+
-  prior(normal(-0.5,1), class = b,
-        coef = "STRAT_mod0.98")+
-  prior(normal(-0.5,1), class = b,
-        coef = "STRAT_mod1")+
-  prior(normal(0,1), class = b,
-        coef = "STRAT_mod1.21")+
-  prior(normal(0,1), class = b,
-        coef = "STRAT_mod3.5")+
-  prior(normal(0.5,1), class = b,
-        coef = "STRAT_mod3.56")+
-  prior(normal(0.5,1), class = b,
-        coef = "STRAT_mod3.73")+
-  prior(normal(0.5,1), class = b,
-        coef = "STRAT_mod5.53")+
-
-  # Group-level SDs
-  prior(exponential(1), class = sd)+
-
-  # Gamma shape
-  prior(exponential(1), class = shape)
-
-poly3_update <- update(poly3, 
-       iter = 4000, 
-       chains = 4,
-       prior = my_prior,
-       control = list(max_treedepth = 12),
-       cores = getOption("mc.cores", parallel::detectCores()))
-# Validate model with posterior checks
-
-pp_check(poly3_update, type = "dens_overlay")
-pp_check(poly3_update, type = "stat")
-pp_check(poly3_update, type = "scatter_avg_grouped",
-         group = "STRAT_mod")
-pp_check(poly3_update, type = "scatter_avg_grouped",
-         group = "RAWMATERIAL")
-
-pp_check(multi4, type = "dens_overlay")
-pp_check(multi4, type = "stat")
-pp_check(multi4, type = "scatter_avg_grouped",
-         group = "RAWMATERIAL")
 ```
 
 ```{r}
@@ -838,7 +819,7 @@ draws <- spread_draws(
   b_polyReduction_s2rawEQTRUE2
 )
 
-slopes <- newdat |>
+slopes <- newdata |>
   crossing(draws) |>
   mutate(b1 = b_polyReduction_s2rawEQTRUE1,
          b2 = 2*b_polyReduction_s2rawEQTRUE2,
