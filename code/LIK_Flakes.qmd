@@ -507,33 +507,6 @@ post
 
 ```{r}
 # Gamma prior for individual layers and Mass
-Elong_Prior <- 
-  prior(normal(0.5, 1),class ="Intercept")+
-
-  prior(normal(0.5, 0.5),class ="b",coef = "RAWMATERIALOpalineDCCS")+
-  prior(normal(0.5, 0.5),class ="b",coef = "STRAT_mod0.09:RAWMATERIALOpalineDCCS")+
-  prior(normal(0.5, 0.5),class ="b",coef = "STRAT_mod0.1:RAWMATERIALOpalineDCCS")+
-  prior(normal(0.5, 0.5),class ="b",coef = "STRAT_mod0.2:RAWMATERIALOpalineDCCS")+
-  prior(normal(0.5, 0.5),class ="b",coef = "STRAT_mod0.3:RAWMATERIALOpalineDCCS")+
-  prior(normal(0.5, 0.5),class ="b",coef = "STRAT_mod0.82:RAWMATERIALOpalineDCCS")+
-  prior(normal(0, 0.5),class ="b",coef = "STRAT_mod1.08:RAWMATERIALOpalineDCCS")+
-  prior(normal(0, 0.5),class ="b",coef = "STRAT_mod1.44:RAWMATERIALOpalineDCCS")+
-  prior(normal(0, 0.5),class ="b",coef = "STRAT_mod2.15:RAWMATERIALOpalineDCCS")+
-  prior(normal(0, 0.5),class ="b",coef = "STRAT_mod2.88:RAWMATERIALOpalineDCCS")+
-  prior(normal(0, 0.5),class ="b",coef = "STRAT_mod3.37:RAWMATERIALOpalineDCCS")+
-    
-  prior(normal(0.5, 1),class ="b",coef = "STRAT_mod0.09")+
-  prior(normal(0.5, 1),class ="b",coef = "STRAT_mod0.1")+
-  prior(normal(0.5, 1),class ="b",coef = "STRAT_mod0.2")+
-  prior(normal(0.5, 1),class ="b",coef = "STRAT_mod0.3")+
-  prior(normal(0.5, 1),class ="b",coef = "STRAT_mod0.82")+
-  prior(normal(-0.5, 1),class ="b",coef = "STRAT_mod1.08")+
-  prior(normal(-0.5, 1),class ="b",coef = "STRAT_mod1.44")+
-  prior(normal(-0.5, 1),class ="b",coef = "STRAT_mod2.15")+
-  prior(normal(-0.5, 1),class ="b",coef = "STRAT_mod2.88")+
-  prior(normal(-0.5, 1),class ="b",coef = "STRAT_mod3.37")+
-  
-  prior(gamma(2, 0.5), class = "shape")
 
 
 Elong_Prior <- 
@@ -600,7 +573,7 @@ fit_Elong_anova |>
           text = element_text(size = 18),
           legend.position = "none") +
   ylab("Posterior Median Elongation") + 
-  xlab("Mammal-to-Fish") -> Elong2
+  xlab("Fish-to-Mammal") -> Elong2
 ```
 
 ```{r}
@@ -660,7 +633,7 @@ model_hyp1 <- brm(Utility_s ~ poly(Reduction_s, 2, raw = TRUE)*STRAT_mod+
                    RAWMATERIAL,
               data = fit_df,
               family = Gamma(link = "log"),
-              iter = 2000,
+              iter = 4000,
               chains = 2,
               seed = 777,
               #prior=my_prior,
@@ -689,11 +662,6 @@ model_hyp3 <- brm(Utility_s ~ poly(Reduction_s, 2, raw = TRUE)*STRAT_mod+
               save_pars = save_pars(all = TRUE),
               cores = getOption("mc.cores", parallel::detectCores()))
 
-
-my_prior <- 
-  prior(normal(0,1), class = "b")+
-  prior(lkj(2), class = "cor",  group = "STRAT_mod")+
-  prior(exponential(1), class = "sd")
 
 
 pp_check(model_hyp1)
@@ -880,7 +848,9 @@ dev.off()
 
 pws_tmp <- pairs(em_slopes_resp)
 df_tmp <- summary(pws_tmp, infer = TRUE)
-write.csv(file = "flake_utility_reduction_pairwise.csv", x = as.data.frame(df_tmp))
+write.csv(file = paste0(dir,"/results/tables/",
+                        "flake_utility_reduction_pairwise.csv"), 
+          x = as.data.frame(df_tmp))
 
 
 # Expected Utility for each strat at specified reduction value

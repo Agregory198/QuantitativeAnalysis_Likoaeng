@@ -41,6 +41,7 @@ library(tidyverse)
 library(dplyr)
 library(forcats)
 library(tidybayes)
+library(here)
 
 # Bayesian models
 library(brms)
@@ -84,17 +85,15 @@ scraper_red <- function(L, D, a, b){
 #| message: false
 #| warning: false
 
-#| message: false
-#| warning: false
-
 # Read and clean the data
+dir = here::here()
 
-df_24 <- read_csv("../data/AG_Winter2024_LIK_Final.csv")
-df_25 <- read_csv("../data/AG_Summer2025_LIK_Final.csv") |>
+df_24 <- read_csv(paste0(dir, "/data/AG_Winter2024_LIK_Final.csv"))
+df_25 <- read_csv(paste0(dir, "/data/AG_Summer2025_LIK_Final.csv")) |>
   mutate(MASS = as.numeric(MASS)) |>
   select(-"...72")
 
-df_ratios <- read_csv("../data/LIK_RiverTerr_Ratios.csv") |>
+df_ratios <- read_csv(paste0(dir, "/data/LIK_RiverTerr_Ratios.csv")) |>
   rename("STRAT" = "Strat")
 
 # Merge dataframes
@@ -114,7 +113,22 @@ df_raw <- rbind(df_24, df_25) |>
          CORTEX = ifelse(CORTEX == "10-40%", "11-40%",
                   ifelse(CORTEX == "40-60%", "41-60%",
                   ifelse(CORTEX == "60-90%", "61-90%",
-                  ifelse(CORTEX == "90-99%", "91-99%", CORTEX)))))
+                  ifelse(CORTEX == "90-99%", "91-99%", CORTEX)))),
+         buckets = ifelse(STRAT == "I", 366,
+                   ifelse(STRAT == "III", 416,
+                   ifelse(STRAT == "IV", 27.25,
+                   ifelse(STRAT == "V", 223.75,
+                   ifelse(STRAT == "VI", 289.33,
+                   ifelse(STRAT == "VII/IX", 341,
+                   ifelse(STRAT == "X", 47.25,
+                   ifelse(STRAT == "XI", 69.25,
+                   ifelse(STRAT == "XII", 33,
+                   ifelse(STRAT == "XIII", 218.67,
+                   ifelse(STRAT == "XIV", 26,
+                   ifelse(STRAT == "XV", 27.5,
+                   ifelse(STRAT == "XVI", 35.25,
+                   ifelse(STRAT == "XVII", 18.33,
+                          NA)))))))))))))))
 
 
 df <- df_raw |>
@@ -129,17 +143,64 @@ df <- df_raw |>
   drop_na(RAWMATERIAL)
 
 
+df_raw <- df_raw |>
+  filter(RAWMATERIAL %in% c("Opaline/CCS", "Hornfels")) |>
+  full_join(df_ratios) |>
+  mutate(fish_dens = (Fish_mass/100)/Volume_m3,
+         mammal_dens = (NonFish_mass/100)/Volume_m3,
+         STRAT_mod = round(fish_dens/mammal_dens, 2),
+         STRAT = factor(STRAT),
+         STRAT = droplevels(STRAT)) |>
+  drop_na(RAWMATERIAL)
+
+
+# take average core flake scar length
+df_raw |>
+  dplyr::filter(ARTIFACTCLASS=="Core") |>
+  group_by(RAWMATERIAL)|>
+  dplyr::summarise(a = 
+                     mean(LENGHTLONGESTFLAKESCAR)) -> df.core_average
+
+
+
+# take average core flake scar length
+df_raw |>
+  dplyr::filter(ARTIFACTCLASS=="Core") |>
+  group_by(RAWMATERIAL, STRAT) |>
+  summarize(Ave_FlakeLength = mean(LENGHTLONGESTFLAKESCAR)) -> core_size
+
 
 # set values for small, medium, and large slug effect sizes
 small <- 5.18
 
+
+# Subset data by flakes and flake variables
+core_bind <- full_join(core_size, df_raw) |>
+  filter(ARTIFACTCLASS == "Flake" & COMPLETENESS == "Complete") |>
+  group_by(RAWMATERIAL, STRAT) |>
+  mutate(Utility_small = TECHLENGTH*(TECHLENGTH - small),
+         
+         Transport_small = Utility_small/((MAXTHICKNESS/TECHLENGTH)*TECHLENGTH^3),
+         
+         Reduction = TECHLENGTH/Ave_FlakeLength) -> df_flakes
+
+# Subset data by cores and core variables
+df_cores <- df_raw |>
+  filter(ARTIFACTCLASS == "Core" & CORECOMPLETENESS == "Complete") |>
+  mutate(SA_Ellipse = (4*pi)*
+           ((((((MAXLENGTH/2)*(MAXWIDTH/2))^1.6075)+
+           (((MAXLENGTH/2)*(MAXTHICKNESS/2))^1.6075)+
+           (((MAXWIDTH/2)+(MAXTHICKNESS/2))^1.6075))/3)^(1/1.6075)))
+
 # Subset data by retouch and retouch variables
-df_retouch <- df |>
+df_retouch <- df_raw |>
   filter(ARTIFACTCLASS == "RetouchedTool" & RAWMATERIAL != "BWA UPPER 1" &
            COMPLETENESS == "Complete") |>
   mutate(Utility = MAXLENGTH*(MAXLENGTH - small),
          
          Transport = Utility/((MAXTHICKNESS/TECHLENGTH)*TECHLENGTH^3)) 
+
+
 
 ```
 
@@ -190,13 +251,13 @@ scrap_export <- scrap_red |>
   mutate() |>
   select(Rem.Weight, Max.thick, Mean.t, GIUR)
 
-write.csv(scrap_export, "../data/LIK_Scrap_Input.csv")
+write.csv(scrap_export, paste0(dir, "/data/LIK_Scrap_Input.csv"))
 ```
 
 ### Grouped Layers
 
 ```{r}
-scrap_pred <- read_csv("../data/LIK_Scrap_Pred.csv") |>
+scrap_pred <- read_csv(paste0(dir, "/data/LIK_Scrap_Pred.csv")) |>
   select(`Percent.Consumed`) |>
   mutate(Utility = df_scrap$Utility,
          STRAT_mod = df_scrap$STRAT_mod,
@@ -217,14 +278,6 @@ fit_df <- lm_red |>
          STRAT_mod = factor(STRAT_mod)) |>
   select(Reduction_s, Utility_s, STRAT_mod, STRAT_mod_s, RAWMATERIAL) |>
   na.omit()
-
-```
-
-```{r}
-df_scrap |>
-  ggplot(aes(x = factor(STRAT_mod), y = MAXLENGTH))+
-  geom_boxplot()
-
 
 ```
 
@@ -538,6 +591,10 @@ slope_group_summary <- slope_group_draws |>
     .groups = "drop"
   )
 
+png(paste0(dir,"/results/figures/fig17a.png"), width = 290, height = 220,
+    units = "mm", res = 300)
+
+
 ggplot(slope_group_summary,
        aes(Reduction_s, mean)) +
   geom_line(linewidth = 1) +
@@ -550,6 +607,8 @@ ggplot(slope_group_summary,
     y = expression(Delta~"Utility-to-Reduction")
   ) +
   theme_minimal()
+
+dev.off()
 ```
 
 ```{r}
@@ -579,12 +638,25 @@ em_slopes_resp <- emtrends(
   re_formula = NULL,
   level = 0.9
 )
+
+png(paste0(dir,"/results/figures/fig17b.png"), width = 290, height = 220,
+    units = "mm", res = 300)
+
 plot(em_slopes_resp)+
   xlab(expression(Delta*"Utility-to-Reduction"))+
   ylab("Ratio")
-pairs(em_slopes_resp)
 
+dev.off()
 
+pws_tmp <- pairs(em_slopes_resp)
+df_tmp <- summary(pws_tmp, infer = TRUE)
+write.csv(file = paste0(dir, "/results/tables/",
+                        "scraper_utility_retouch_pairwise.csv"), 
+          x = as.data.frame(df_tmp))
+
+```
+
+```{r}
 # Expected Utility for each strat at specified reduction value
 em_slopes_resp <- emmeans(
   multi1,
@@ -597,6 +669,6 @@ em_slopes_resp <- emmeans(
   re_formula = NULL,
   level = 0.9
 )
-plot(em_slopes_resp)
-pairs(em_slopes_resp)
+#plot(em_slopes_resp)
+#pairs(em_slopes_resp)
 ```
