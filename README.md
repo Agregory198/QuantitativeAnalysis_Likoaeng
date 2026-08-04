@@ -47,7 +47,7 @@ Similar to the stone flakes, **Figure 4** shows the relationship between core sc
 
 ### Scrapers
 There are no visible trends in how hunter-gatherers managed scraper utility and retouch intensity as they increased fish use (**Figure 5**).
-![Figure5](results/figures/Figure17b.png)
+![Figure5](results/figures/fig17b.png)
 
 ## Conclusion
 
