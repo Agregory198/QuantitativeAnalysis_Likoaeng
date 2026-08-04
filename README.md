@@ -36,13 +36,14 @@ Though there are visible trends in toolkit and material composition (**Figure 1*
 
 
 ### Flaked tools
-There are clear trends in how hunter-gatherers managed their flaked tool cutting edge (**Figure 2**) and elongation, or how blade-like, the tool is (**Figure 3**) as they increased coastal resource use. **Figure 2** and **Figure 3** show the slope estimate between flake utility and reduction intensity. There are clear shifts towards lower rates as hunter-gatherers focused on coastal resources. This result implies that hunter-gatherers focused on much slower shifts between flake utility and reduction intensity when focused on coastal resource use.
+There are clear trends in how hunter-gatherers managed their flaked tool cutting edge (**Figure 2**) and elongation, or how blade-like, the tool is (**Figure 3**) as they increased coastal resource use. **Figure 2a** shows a boxplot for the relationship between raw material (*hornfels* and *Opaline*) and fish-to-mammal ratios and **Figure 2b** shows the linear relationship between the same variables and a scaled fish-to-mammal ratio, As hunter-gatherers increased fish consumption, there was no change in hornfels (P(hornfels > 0) = 0.4) but a significant decrease in opaline cutting edge (P(Opaline > 0) = 0). The analysis of variance, shows that opaline only differs once hunter-gatherers crossed a threshold of 1:1 consumption of fish and mammal. **Figure 3** shows the same relationship associated with flake elongation. These data suggest that flaking technology did not change until fish became the dominant source of food in hunter-gatherer diets.
+
 ![Figure2](results/figures/fig10.png)
 ![Figure3](results/figures/fig11.png)
 
 ### Core tools
-There are no visible trends in how hunter-gatherers managed their core tool utility to reduction intensity (**Figure 4**). This implies that core maintenance is not always sensitive to shifts in hunter-gatherer diets and mobility strategies.
-![Figure4](results/figures/Figure13a.png)
+Similar to the stone flakes, **Figure 4** shows the relationship between core scars-to-surface area and fish-to-mammal ratios. Also, like the flaked tools, opaline shows a significant increase in the use of cores' surface area (scar density) as hunter-gatherers focused on fish resources (P(Opaline > 0) = 1). There is also evidence that this increase use does not happen until fish become a dominatn food source in hunter-gatherer diets.
+![Figure4](results/figures/fig13.png)
 
 ### Scrapers
 There are no visible trends in how hunter-gatherers managed scraper utility and retouch intensity as they increased coastal resource use(**Figure 5**). This suggests that we should expects shifts in every aspect of hunter-gatherer toolkits. Instead, a focus on coastal resources led to a shift in selective technologies.
