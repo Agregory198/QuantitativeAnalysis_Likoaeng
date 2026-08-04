@@ -32,7 +32,7 @@ I expect shifts in toolkits as hunter-gatherers increased coastal resource use. 
 
 ### Toolkit Composition
 Though there are visible trends in toolkit and material composition (**Figure 1**), a proportional model conducted with a categorical and bernoulli family show no significant differences. This contradicts previous observations that predicted hunter-gatherer toolkits shift in response to changing mobility and dietary patterns.
-![Figure1](results/figures/fig8.png)
+![Figure1](./results/figures/fig8.png)
 
 
 ### Flaked tools
