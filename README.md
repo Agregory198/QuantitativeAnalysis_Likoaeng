@@ -46,8 +46,8 @@ Similar to the stone flakes, **Figure 4** shows the relationship between core sc
 ![Figure4](results/figures/fig13.png)
 
 ### Scrapers
-There are no visible trends in how hunter-gatherers managed scraper utility and retouch intensity as they increased coastal resource use(**Figure 5**). This suggests that we should expects shifts in every aspect of hunter-gatherer toolkits. Instead, a focus on coastal resources led to a shift in selective technologies.
-![Figure5](results/figures/Figure14a.png)
+There are no visible trends in how hunter-gatherers managed scraper utility and retouch intensity as they increased fish use (**Figure 5**).
+![Figure5](results/figures/Figure17b.png)
 
 ## Conclusion
 
