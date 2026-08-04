@@ -12,8 +12,6 @@ editor: visual
 #| warning: false
 #| message: false
 
-#usethis::use_git_config(user.name="Alex Gregory", user.email="arg9496@nyu.edu")
-
 # To plot figures
 
 library(ggplot2)
@@ -606,7 +604,7 @@ fit_Elong_anova |>
 ```
 
 ```{r}
-png("../results/figures/fig11.png", width = 290, height = 220,
+png(paste0(dir, "/results/figures/fig11.png"), width = 290, height = 220,
     units = "mm", res = 300)
 
 ggarrange(
@@ -759,7 +757,8 @@ deriv_df <- do.call(rbind, deriv_summary)
 
 
 
-
+png(paste0(dir, "/results/figures/fig15a.png"), width = 290, height = 220,
+    units = "mm", res = 300)
 
 ggplot(deriv_df, aes(x = Reduction_s, y = mean)) +
   geom_hline(yintercept = 0, linetype = "dashed") +
@@ -772,9 +771,12 @@ ggplot(deriv_df, aes(x = Reduction_s, y = mean)) +
   ) +
   theme_minimal()
 
+dev.off()
+
 ```
 
 ```{r}
+#| include: false
 # Probability slopes are greater than 0
 positive_prob <- deriv_df |>
   group_by(Reduction_s, STRAT_mod) |>
@@ -836,6 +838,9 @@ slope_summary <- slopes |>
 ```
 
 ```{r}
+#| include: false
+
+
 conditional_effects(model_hyp1, type = "response")
 
 # need response to match the above plot
@@ -861,10 +866,21 @@ em_slopes_resp <- emtrends(
   allow_new_levels = TRUE,
   re_formula = NULL
 )
+
+png(paste0(dir, "/results/figures/fig15b.png"), width = 290, height = 220,
+    units = "mm", res = 300)
+
 plot(em_slopes_resp)+
   xlab(expression(Delta*"Utility-to-Reduction"))+
   ylab("Ratio")
-pairs(em_slopes_resp)
+
+dev.off()
+
+
+
+pws_tmp <- pairs(em_slopes_resp)
+df_tmp <- summary(pws_tmp, infer = TRUE)
+write.csv(file = "flake_utility_reduction_pairwise.csv", x = as.data.frame(df_tmp))
 
 
 # Expected Utility for each strat at specified reduction value
@@ -878,7 +894,7 @@ em_slopes_resp <- emmeans(
   allow_new_levels = TRUE,
   re_formula = NULL
 )
-plot(em_slopes_resp)+xlab("why?")
-pairs(em_slopes_resp)
+#plot(em_slopes_resp)+xlab("why?")
+#pairs(em_slopes_resp)
 
 ```
