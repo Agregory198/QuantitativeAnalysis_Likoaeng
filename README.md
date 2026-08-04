@@ -31,14 +31,14 @@ I expect shifts in toolkits as hunter-gatherers increased coastal resource use. 
 
 
 ### Toolkit Composition
-Though there are visible trends in toolkit and material composition (**FIgure 1**), a proportional model conducted with a categorical and bernoulli family show no significant differences. This contradicts previous observations that predicted hunter-gatherer toolkits shift in response to changing mobility and dietary patterns.
-![Figure1](results/figures/Figure5.png)
+Though there are visible trends in toolkit and material composition (**Figure 1**), a proportional model conducted with a categorical and bernoulli family show no significant differences. This contradicts previous observations that predicted hunter-gatherer toolkits shift in response to changing mobility and dietary patterns.
+![Figure1](results/figures/fig8.png)
 
 
 ### Flaked tools
-There are clear trends in how hunter-gatherers managed their flaked tool utility and reduction intensity (**Figure 2**) as they increased coastal resource use. **Figure 2** and **Figure 3** show the slope estimate between flake utility and reduction intensity. There are clear shifts towards lower rates as hunter-gatherers focused on coastal resources. This result implies that hunter-gatherers focused on much slower shifts between flake utility and reduction intensity when focused on coastal resource use.
-![Figure2](results/figures/Figure12a.png)
-![Figure3](results/figures/Figure12b.png)
+There are clear trends in how hunter-gatherers managed their flaked tool cutting edge (**Figure 2**) and elongation, or how blade-like, the tool is (**Figure 3**) as they increased coastal resource use. **Figure 2** and **Figure 3** show the slope estimate between flake utility and reduction intensity. There are clear shifts towards lower rates as hunter-gatherers focused on coastal resources. This result implies that hunter-gatherers focused on much slower shifts between flake utility and reduction intensity when focused on coastal resource use.
+![Figure2](results/figures/fig10.png)
+![Figure3](results/figures/fig11.png)
 
 ### Core tools
 There are no visible trends in how hunter-gatherers managed their core tool utility to reduction intensity (**Figure 4**). This implies that core maintenance is not always sensitive to shifts in hunter-gatherer diets and mobility strategies.
