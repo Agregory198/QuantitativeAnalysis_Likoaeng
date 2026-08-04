@@ -717,7 +717,7 @@ ranef <- ranef(multi3)$`STRAT_mod`[,,]
 
 
 groups_to_plot <- fit_df |>
-  count(STRAT_mod) |>
+  dplyr::count(STRAT_mod) |>
   rename("group" = "STRAT_mod") |>
   arrange(desc(n)) |>
   pull(group)
@@ -792,7 +792,7 @@ positive_prob <- slope_group_draws |>
   group_by(group) |>
   summarize(max = max(Reduction_s))
 
-positive_prob
+#positive_prob
 
 # Expected slope for each strat at specified reduction value
 em_slopes_resp <- emtrends(
@@ -836,6 +836,6 @@ em_slopes_resp <- emmeans(
   allow_new_levels = TRUE,
   re_formula = NULL
 )
-#plot(em_slopes_resp)
+plot(em_slopes_resp)
 #pairs(em_slopes_resp)
 ```
