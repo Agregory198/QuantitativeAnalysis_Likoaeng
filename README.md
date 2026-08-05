@@ -20,16 +20,27 @@ I first describe the composition of hunter-gatherer toolkits, including the raw 
 I then evaluate three specific artifact classes most commonly found in archaeological contexts to evaluate whether there are technological shifts sensitive to increased coastal resource exploitation. Namely, I examine stone flakes, cores, and scrapers. I use attributes I recorded from the tools to evaluate shifts in tool utility, reduction, and retouch intensity. To do this, I modeled several Bayesian GLMs composed of simple, hierarchical, and second order polynomials. I then evaluate which model fit the data best using a leave-one-out analysis. I then visualize and compute the rate of change between tool utility, reduction, and retouch intensity for the three stone tool classes.
 
 **Flakes**
+
 <br>
+
 ![flakes](./results/figures/fig4.png)
+
 <br>
+
 **Cores**
+
 <br>
+
 ![cores](./results/figures/fig5.png)
+
 <br>
+
 **Scrapers**
+
 <br>
+
 ![scrapers](./results/figures/fig6.png)
+
 <br>
 *Illustrator: Alex Gregory*
 
@@ -55,6 +66,7 @@ Similar to the stone flakes, **Figure 4** shows the relationship between core sc
 ![Figure4](results/figures/fig13.png)
 
 <br>
+
 **Figure 5** further shows the posterior slope value between the polynomial regression modeled on core utility-to-reduction intensity. Lower slope values suggest slower core reduction in relation to remaining core utility. There is a clear trend that as fish-to-mammal ratios increase, the slope increases after fish dominate the assemblage. This, again, confirms that there exists a threshold where hunter-gatherers modify their stone technologies after riverine resource intensification.
 ![Figure5](results/figures/fig16b.png)
 
