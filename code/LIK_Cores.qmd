@@ -262,7 +262,7 @@ props <- bayes_cat |>
     newdata = newdat,
     re_formula = NULL   # include strat-level random effects
   ) |>
-  group_by(STRAT_mod, .category, .draw) |>
+  group_by(STRAT_mod, .category) |>
   summarise(
     mean = mean(.epred),
     l95  = quantile(.epred, 0.05),
@@ -272,40 +272,12 @@ props <- bayes_cat |>
   rename("CONARDUNIFIEDTYPOLOGY" = .category)
 
 
-newdat <- expand.grid(
-  STRAT_mod = seq(min(fit_df_dmi$STRAT_mod),
-                  max(fit_df_dmi$STRAT_mod),
-                  length = 100),
-  ARTIFACTCLASS = unique(fit_df_dmi$ARTIFACTCLASS)
-)
-
-epred_draws(bayes_dmi, newdata = newdat) |>
-  group_by(ARTIFACTCLASS) |>
-  summarize(median = mean(.epred),
-            upr = quantile(.epred, 0.95),
-            lwr = quantile(.epred, 0.05))
-
-post <- as_draws(bayes_dmi)
-(mean(post$`1`$b_STRAT_mod > 0) + mean(post$`2`$b_STRAT_mod > 0) +
-  mean(post$`3`$b_STRAT_mod > 0) + mean(post$`4`$b_STRAT_mod > 0)) / 4
-
-
-ggplot(props, aes(x = STRAT_mod, y = mean, fill =CONARDUNIFIEDTYPOLOGY)) +
-  geom_col(position = "dodge") +
-  geom_errorbar(
-    aes(ymin = l95, ymax = u95),
-    position = position_dodge(width = 0.9),
-    width = 0.2
-  ) +
-  labs(
-    y = "Estimated proportion",
-    x = "Stratigraphic module",
-    fill = "Core Typology"
-  ) +
-  theme_minimal()
+write.csv(file = paste0(dir,"/results/tables/",
+                        "core_prop_pairwise.csv"), 
+          x = props)
 ```
 
-#### Core exploited faces to mass
+#### Scar density index
 
 ```{r}
 fit_df <- df_cores |>
