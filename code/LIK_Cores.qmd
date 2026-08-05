@@ -816,7 +816,7 @@ plot(em_slopes_resp)+
 dev.off()
 
 
-pws_tmp <- pairs(em_slopes_resp)
+pws_tmp <- pairs(em_slopes_resp)S
 df_tmp <- summary(pws_tmp, infer = TRUE)
 write.csv(file = paste0(dir, "/results/tables/",
                         "Core_utility_reduction_pairwise.csv"), 
