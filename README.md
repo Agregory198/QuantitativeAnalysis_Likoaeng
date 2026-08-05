@@ -30,6 +30,8 @@ I then evaluate three specific artifact classes most commonly found in archaeolo
 **Scrapers**
 <br>
 ![scrapers](./results/figures/fig6.png)
+<br>
+*Illustrator: Alex Gregory*
 
 ## Hypothesis
 I expect shifts in toolkits as hunter-gatherers increased coastal resource use. If my models show significant shifts in toolkit composition and rates of change between tool utility, reduction, and retouch intensity, then there is evidence to support this hypothesis.
