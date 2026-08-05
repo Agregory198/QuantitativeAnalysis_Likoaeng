@@ -638,7 +638,7 @@ model_hyp1 <- brm(Utility_s ~ poly(Reduction_s, 2, raw = TRUE)*STRAT_mod+
               seed = 777,
               #prior=my_prior,
               save_pars = save_pars(all = TRUE),
-              cores = getOption("mc.cores", parallel::detectCores()))
+              cores = getOption("mc.cores", parallel::detectCores())) 
 
 model_hyp2 <- brm(Utility_s ~ poly(Reduction_s, 2, raw = TRUE)*STRAT_mod_s+
                     RAWMATERIAL,
@@ -677,6 +677,63 @@ loo_compare(loo1, loo2)
 
 ```
 
+#### Update model
+
+```{r}
+mu_prior <-
+  prior(normal(1, 1), class = 'b', coef = 'polyReduction_s2rawEQTRUE1')+
+  prior(normal(0.5, 1), class = 'b', coef = 'polyReduction_s2rawEQTRUE2')+
+  
+  prior(normal(1, 1), class = 'b', coef = 'polyReduction_s2rawEQTRUE1:STRAT_mod0.09')+
+  prior(normal(1, 1), class = 'b', coef = 'polyReduction_s2rawEQTRUE1:STRAT_mod0.1')+
+  prior(normal(1, 1), class = 'b', coef = 'polyReduction_s2rawEQTRUE1:STRAT_mod0.2')+
+  prior(normal(1, 1), class = 'b', coef = 'polyReduction_s2rawEQTRUE1:STRAT_mod0.3')+
+  prior(normal(1, 1), class = 'b', coef = 'polyReduction_s2rawEQTRUE1:STRAT_mod0.82')+
+  prior(normal(0.5, 1), class = 'b', coef = 'polyReduction_s2rawEQTRUE1:STRAT_mod1.08')+
+  prior(normal(0.5, 1), class = 'b', coef = 'polyReduction_s2rawEQTRUE1:STRAT_mod1.44')+
+  prior(normal(0.5, 1), class = 'b', coef = 'polyReduction_s2rawEQTRUE1:STRAT_mod2.15')+
+  prior(normal(0.25, 1), class = 'b', coef = 'polyReduction_s2rawEQTRUE1:STRAT_mod2.88')+
+  prior(normal(0, 1), class = 'b', coef = 'polyReduction_s2rawEQTRUE1:STRAT_mod3.37')+
+  
+  prior(normal(0.5, 0.2), class = 'b', coef = 'polyReduction_s2rawEQTRUE2:STRAT_mod0.09')+
+  prior(normal(0.5, 0.2), class = 'b', coef = 'polyReduction_s2rawEQTRUE2:STRAT_mod0.1')+
+  prior(normal(0.5, 0.2), class = 'b', coef = 'polyReduction_s2rawEQTRUE2:STRAT_mod0.2')+
+  prior(normal(0.5, 0.2), class = 'b', coef = 'polyReduction_s2rawEQTRUE2:STRAT_mod0.3')+
+  prior(normal(0.5, 0.2), class = 'b', coef = 'polyReduction_s2rawEQTRUE2:STRAT_mod0.82')+
+  prior(normal(0.25, 0.2), class = 'b', coef = 'polyReduction_s2rawEQTRUE2:STRAT_mod1.08')+
+  prior(normal(0.25, 0.2), class = 'b', coef = 'polyReduction_s2rawEQTRUE2:STRAT_mod1.44')+
+  prior(normal(0.25, 0.2), class = 'b', coef = 'polyReduction_s2rawEQTRUE2:STRAT_mod2.15')+
+  prior(normal(0.15, 0.2), class = 'b', coef = 'polyReduction_s2rawEQTRUE2:STRAT_mod2.88')+
+  prior(normal(0.1, 0.2), class = 'b', coef = 'polyReduction_s2rawEQTRUE2:STRAT_mod3.37')+
+  
+  prior(normal(1, 1), class = 'b', coef = 'RAWMATERIALOpalineDCCS')+
+  prior(normal(1, 1), class = 'b', coef = 'STRAT_mod0.09')+
+  prior(normal(1, 1), class = 'b', coef = 'STRAT_mod0.1')+
+  prior(normal(1, 1), class = 'b', coef = 'STRAT_mod0.2')+
+  prior(normal(1, 1), class = 'b', coef = 'STRAT_mod0.3')+
+  prior(normal(1, 1), class = 'b', coef = 'STRAT_mod0.82')+
+  prior(normal(1, 1), class = 'b', coef = 'STRAT_mod1.08')+
+  prior(normal(1, 1), class = 'b', coef = 'STRAT_mod1.44')+
+  prior(normal(1, 1), class = 'b', coef = 'STRAT_mod2.15')+
+  prior(normal(1, 1), class = 'b', coef = 'STRAT_mod2.88')+
+  prior(normal(1, 1), class = 'b', coef = 'STRAT_mod3.37')+
+  
+  prior(gamma(2, 0.5), class = "shape")
+  
+  
+  
+  
+  
+  
+  
+
+model_hyp1_update <- update(model_hyp1, 
+       prior = my_prior, 
+       save_pars = save_pars(all = TRUE),
+       cores = getOption("mc.cores", parallel::detectCores()),
+       seed = 7770007771234)
+```
+
 ```{r}
 x_seq <- seq(min(fit_df$Reduction_s, na.rm = TRUE),
              max(fit_df$Reduction_s, na.rm = TRUE),
@@ -690,7 +747,7 @@ newdata <- expand.grid(
 
 newdata$row_id <- seq_len(nrow(newdata))
 
-ep <- posterior_epred(model_hyp1, newdata = newdata)
+ep <- posterior_epred(model_hyp1_update, newdata = newdata)
 
 library(matrixStats)
 
@@ -763,7 +820,7 @@ positive_prob
 ```{r}
 # Expected Utility for each strat at specified reduction value
 em_slopes_resp <- emmeans(
-  model_hyp1,
+  model_hyp1_update,
   ~ STRAT_mod+RAWMATERIAL,
   var = "Reduction_s",
   # Compute from the minimum significant slope for all strats
@@ -782,7 +839,7 @@ pairs(em_slopes_resp)
 
 ```{r}
 draws <- spread_draws(
-  model_hyp1,
+  model_hyp1_update,
   
   b_Intercept,
   b_polyReduction_s2rawEQTRUE1,
@@ -809,23 +866,23 @@ slope_summary <- slopes |>
 #| include: false
 
 
-conditional_effects(model_hyp1, type = "response")
+conditional_effects(model_hyp1_update, type = "response")
 
 # need response to match the above plot
 
 # on the response scale
 # crossing 1 means no difference, the ratio is the average magnitude difference
-em <- emmeans(model_hyp1, ~STRAT_mod*RAWMATERIAL, type = "response")
+em <- emmeans(model_hyp1_update, ~STRAT_mod*RAWMATERIAL, type = "response")
 as_tibble(pairs(em, by = "RAWMATERIAL"))
 
-em <- emmeans(model_hyp1, ~STRAT_mod*RAWMATERIAL, type = "link")
+em <- emmeans(model_hyp1_update, ~STRAT_mod*RAWMATERIAL, type = "link")
 as_tibble(pairs(em, by = "RAWMATERIAL"))
 ```
 
 ```{r}
 # Expected slope for each strat at specified reduction value
 em_slopes_resp <- emtrends(
-  model_hyp1,
+  model_hyp1_update,
   ~ STRAT_mod,
   var = "Reduction_s",
   # Compute from the minimum significant slope for all strats
@@ -855,7 +912,7 @@ write.csv(file = paste0(dir,"/results/tables/",
 
 # Expected Utility for each strat at specified reduction value
 em_slopes_resp <- emmeans(
-  model_hyp1,
+  model_hyp1_update,
   ~ STRAT_mod+RAWMATERIAL,
   var = "Reduction_s",
   # Compute from the minimum significant slope for all strats
