@@ -41,7 +41,7 @@ I then evaluate three specific artifact classes most commonly found in archaeolo
 
 ![scrapers](./results/figures/fig6.png)
 
-<br>
+
 *Illustrator: Alex Gregory*
 
 ## Hypothesis
