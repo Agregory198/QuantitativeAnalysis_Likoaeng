@@ -40,8 +40,6 @@ I then evaluate three specific artifact classes most commonly found in archaeolo
 <br>
 
 ![scrapers](./results/figures/fig6.png)
-
-
 *Illustrator: Alex Gregory*
 
 ## Hypothesis
@@ -71,7 +69,7 @@ Similar to the stone flakes, **Figure 4** shows the relationship between core sc
 ![Figure5](results/figures/fig16b.png)
 
 ## Conclusion
-
+Riverine intensification during the late Holocene in highland Lesotho produced technological reorganization but the technological change is not uniform across all lithic attributes, contrary to previous models. Core reduction intensified abruptly once fish exceeded half of hunter-gatherer diets, while flake cutting-edge-to-mass and elongation declined abruptly at the same threshold. Meanwhile, utility-to-reduction and scraper utility-to-retouch relationships showed no detectable change. This diverse technological response is a significant finding because it shows that resource intensification can appear as multiple, temporally distinct signals. In particular, a lack of change in one dimension (scraper retouch) does not necessarily mean that the entire toolkit lacks reorganization. Attribute-level lithic analysis of the late Holocene in southern Africa is rare in the regional literature. The present analysis illustrates what such fine-scale studies can reveal, specifically that the regionally diverse responses to intensification for late Holocene southern Africa may reflect diversity both within and between technological systems.
 
 ## Tools Used
 - 'R'
