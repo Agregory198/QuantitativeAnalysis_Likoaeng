@@ -22,9 +22,13 @@ I then evaluate three specific artifact classes most commonly found in archaeolo
 **Flakes**
 <br>
 ![flakes](./results/figures/fig4.png)
+<br>
 **Cores**
+<br>
 ![cores](./results/figures/fig5.png)
+<br>
 **Scrapers**
+<br>
 ![scrapers](./results/figures/fig6.png)
 
 ## Hypothesis
